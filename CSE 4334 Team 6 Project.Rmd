@@ -16,7 +16,7 @@ library(caret)
 library(dplyr)
 library(corrplot)
 library(GGally)
-
+library(randomForest)
 
 
 ```
@@ -169,6 +169,97 @@ The dataset includes 1338 observations and 8 variables: age, sex, bmi, children,
 
 
 
-# Part 2: Linear Regression
+# Part 2: Building Model
 
+# Modeling and Evaluation
+
+```{r}
+set.seed(123)
+
+# Splitting the data into training and testing sets (80-20 split)
+train_index <- createDataPartition(insure$charges, p = 0.8, list = FALSE)
+
+train_data <- insure[train_index, ]
+test_data <- insure[-train_index, ]
+
+#verifying the split
+dim(train_data)
+dim(test_data)
+
+```
+# Multiple Linear Regression
+
+```{r}
+# Building the multiple linear regression model
+
+mlr_model <- lm(charges ~ age + sex + bmi + children + smoker + region, data = train_data)
+
+# model summary
+summary(mlr_model)
+
+# Predicting on the test set
+pred_mlr <- predict(mlr_model, newdata = test_data)
+
+# Evaluating with RMSE and R^2
+rmse_mlr <- sqrt(mean((test_data$charges - pred_mlr)^2))
+r2_mlr <- cor(test_data$charges, pred_mlr)^2
+
+cat("Multiple Linear Regression RMSE:", rmse_mlr, "\n")
+cat("Multiple Linear Regression R-squared:", r2_mlr, "\n")
+
+```
+
+
+# Random Forest Regression
+
+```{r}
+# Building the random forest model
+set.seed(123)
+
+rf_model <- randomForest(charges ~ age + sex + bmi + children + smoker + region, data = train_data, ntree = 500, importance = TRUE)
+
+
+# Predicting on the test set
+pred_rf <- predict(rf_model, newdata = test_data)
+
+# Evaluating with RMSE and R^2
+rmse_rf <- sqrt(mean((test_data$charges - pred_rf)^2))
+r2_rf <- cor(test_data$charges, pred_rf)^2
+
+cat("Random Forest RMSE:", rmse_rf, "\n")
+cat("Random Forest R-squared:", r2_rf, "\n")
+
+```
+# Comparing Models
+
+```{r}
+model_comparison <- data.frame(
+  Model = c("Multiple Linear Regression", "Random Forest"),
+  RMSE = c(rmse_mlr, rmse_rf),
+  R_squared = c(r2_mlr, r2_rf)
+)
+print(model_comparison)
+```
+
+# Feature Importance
+```{r}
+importance(rf_model)
+varImpPlot(rf_model, main = "Variable Importance from Random Forest Model")
+```
+
+# Residual Analysis
+```{r}
+residuals_mlr <- data.frame(
+  Predicted = pred_mlr,
+  Residuals = test_data$charges - pred_mlr
+)
+
+ggplot(residuals_mlr, aes(x = Predicted, y = Residuals)) +
+  geom_point(alpha=0.6) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Residuals vs Predicted (MLR Model)", x = "Predicted Charges", y = "Residuals")
+
+```
+
+# Modeling Summary
 
