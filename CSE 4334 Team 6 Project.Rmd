@@ -72,3 +72,57 @@ summary(baseline_model)
 ```
 
 R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
+
+
+```{r}
+
+
+# Basic numeric summaries
+summary(insure)
+
+# Mean charges by smoker status and gender
+insure %>%
+  group_by(smoker, sex) %>%
+  summarise(mean_charges = mean(charges), .groups = "drop")
+
+# Mean BMI and charges by region
+insure %>%
+  group_by(region) %>%
+  summarise(avg_bmi = mean(bmi), avg_charge = mean(charges))
+
+
+```
+# Looks like smokers pay way more on average, and the southeast region has the highest average charges.
+
+```{r}
+# Histogram of charges
+ggplot(insure, aes(x = charges)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Insurance Charges", x = "Charges", y = "Frequency")
+
+# Histogram of BMI
+ggplot(insure, aes(x = bmi)) +
+  geom_histogram(bins = 25, fill = "orange", color = "black") +
+  labs(title = "Distribution of BMI", x = "BMI", y = "Count")
+
+# Boxplot of Charges by Smoker Status
+ggplot(insure, aes(x = smoker, y = charges, fill = smoker)) +
+  geom_boxplot() +
+  labs(title = "Charges by Smoking Status", y = "Insurance Charges")
+
+```
+# Smokers have a much wider range of charges, with many outliers on the high end.
+
+```{r}
+# Scatter: Age vs Charges
+ggplot(insure, aes(x = age, y = charges, color = smoker)) +
+  geom_point(alpha=0.6) +
+  labs(title = "Age vs Charges (Smoker Highlighted)")
+
+# Scatter: BMI vs Charges
+ggplot(insure, aes(x = bmi, y = charges, color = smoker)) +
+  geom_point(alpha=0.6) +
+  labs(title = "BMI vs Charges (Smoker Highlighted)")
+
+```
+
