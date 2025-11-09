@@ -5,7 +5,7 @@ author: "Azmi Alinufael, Maheer Jawwad, Sujana Kabir"
 date: "2025-11-07"
 ---
 
-Preparing Data
+# Preparing Data
 
 ```{r}
 # Load necessary libraries
@@ -85,7 +85,7 @@ summary(baseline_model)
 R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
 
 
-Group Summaries
+# Group Summaries
 
 ```{r}
 
@@ -105,10 +105,10 @@ insure %>%
 
 
 ```
-# Looks like smokers pay way more on average, and the southeast region has the highest average charges.
+Looks like smokers pay way more on average, and the southeast region has the highest average charges.
 
 
-Univariate Visualizations
+# Univariate Visualizations
 
 ```{r}
 # Histogram of charges
@@ -127,9 +127,9 @@ ggplot(insure, aes(x = smoker, y = charges, fill = smoker)) +
   labs(title = "Charges by Smoking Status", y = "Insurance Charges")
 
 ```
-# Smokers have a much wider range of charges, with many outliers on the high end.
+Smokers have a much wider range of charges, with many outliers on the high end.
 
-Bivariate Relationships
+# Bivariate Relationships
 ```{r}
 # Scatter: Age vs Charges
 ggplot(insure, aes(x = age, y = charges, color = smoker)) +
@@ -142,9 +142,10 @@ ggplot(insure, aes(x = bmi, y = charges, color = smoker)) +
   labs(title = "BMI vs Charges (Smoker Highlighted)")
 
 ```
+
 Charges rise with both age and BMI, especially for smokers.
 
-Outlier Detection
+# Outlier Detection
 
 ```{r}
 # Outliers in charges
@@ -161,6 +162,13 @@ ggplot(insure, aes(y = bmi)) +
 There are definitely some high-value outliers in charges, likely from smokers with health issues. BMI also has a few outliers but not as extreme.
 
 
-EDA Summary
 
-The dataset includes 1338 observations and 8
+# EDA Summary
+
+The dataset includes 1338 observations and 8 variables: age, sex, bmi, children, smoker, region, charges, and insuranceclaim. No missing values were found. Categorical variables (sex, smoker, and region) were converted into factors for analysis. Our target variable (charges) is heavily skewed to the right, with a small number of high cost outliers corresponding to expensive medical claims. The descriptive stats and visuals show that smokers consistently incur higher medical charges compared to non-smokers, and that both age and BMI have moderate positive relationships with charges.The variable insuranceclaim serves as a potential target for later classification task but is excluded for out regression modeling of charges to avoid leakage. Overall, smoking, status, BMI, and age are expected to be the most significant predictors of individual medical costs.
+
+
+
+# Part 2: Linear Regression
+
+
