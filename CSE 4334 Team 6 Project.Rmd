@@ -1,11 +1,11 @@
 ---
 title: "CSE 4334 Team 6 Project"
 output: html_document
+author: "Azmi Alinufael, Maheer Jawwad, Sujana Kabir"
 date: "2025-11-07"
 ---
 
 Preparing Data
-
 
 ```{r}
 # Load necessary libraries
@@ -28,7 +28,47 @@ insure <- read.csv("insurance.csv")
 summary(insure)
 
 # Checking for missing values
+# looks clean, no missing values so far
 sum(is.na(insure))
 
 ```
 
+## Initial EDA
+
+```{r}
+# Wanted to see which numeric variables are correlated.
+# selecting only numeric columns first 
+numeric_insure <- insure %>% select_if(is.numeric)
+cor_matrix <- cor(numeric_insure)
+
+# Plotting the heatmap
+corrplot(cor_matrix, method = "color", addCoef.col = "black", type="upper", diag=FALSE)
+
+```
+
+It looks like age and bmi have some positive correlation with charges, but it's not super strong. We probably need to look at the categorical variables too.
+
+```{r}
+# Checking the distribution of our target variable, charges
+ggplot(insure, aes(x = charges)) +
+  geom_histogram(bins = 30, fill = "grey", color = "white") +
+  labs(title = "Distribution of Insurance Charges") +
+  theme_minimal()
+
+```
+
+The charges are heavily skewed to the right. Most people have lower charges, but there's a long tail of expensive claims. May have to fix this later (maybe log transformation) to make the regression work better.
+
+# Baseline Linear Regression
+
+haven't split the data into train/test yet.
+
+```{r}
+# Naive model
+baseline_model <- lm(charges ~ ., data = insure)
+
+summary(baseline_model)
+
+```
+
+R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
