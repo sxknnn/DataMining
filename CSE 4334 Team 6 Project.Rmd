@@ -15,6 +15,8 @@ library(ggplot2)
 library(caret)
 library(dplyr)
 library(corrplot)
+library(GGally)
+
 
 
 ```
@@ -22,7 +24,7 @@ library(corrplot)
 ```{r}
 #Loading and Reading Dataset
 
-insure <- read.csv("insurance.csv")
+insure <- read.csv("Insurance.csv")
 
 # Exploring the structure of the dataset
 summary(insure)
@@ -34,6 +36,16 @@ sum(is.na(insure))
 ```
 
 ## Initial EDA
+```{r}
+# Converting categorical variables to factors
+insure$sex <- as.factor(insure$sex)
+insure$smoker <- as.factor(insure$smoker)
+insure$region <- as.factor(insure$region)
+
+#verifying the types
+str(insure[,c("sex","smoker","region")])
+```
+
 
 ```{r}
 # Wanted to see which numeric variables are correlated.
@@ -60,8 +72,7 @@ ggplot(insure, aes(x = charges)) +
 The charges are heavily skewed to the right. Most people have lower charges, but there's a long tail of expensive claims. May have to fix this later (maybe log transformation) to make the regression work better.
 
 # Baseline Linear Regression
-
-haven't split the data into train/test yet.
+note: haven't split the data into train/test yet.
 
 ```{r}
 # Naive model
@@ -73,6 +84,8 @@ summary(baseline_model)
 
 R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
 
+
+Group Summaries
 
 ```{r}
 
@@ -94,6 +107,9 @@ insure %>%
 ```
 # Looks like smokers pay way more on average, and the southeast region has the highest average charges.
 
+
+Univariate Visualizations
+
 ```{r}
 # Histogram of charges
 ggplot(insure, aes(x = charges)) +
@@ -113,6 +129,7 @@ ggplot(insure, aes(x = smoker, y = charges, fill = smoker)) +
 ```
 # Smokers have a much wider range of charges, with many outliers on the high end.
 
+Bivariate Relationships
 ```{r}
 # Scatter: Age vs Charges
 ggplot(insure, aes(x = age, y = charges, color = smoker)) +
@@ -125,4 +142,25 @@ ggplot(insure, aes(x = bmi, y = charges, color = smoker)) +
   labs(title = "BMI vs Charges (Smoker Highlighted)")
 
 ```
+Charges rise with both age and BMI, especially for smokers.
 
+Outlier Detection
+
+```{r}
+# Outliers in charges
+ggplot(insure, aes(y = charges)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Boxplot of Insurance Charges")
+
+# Outliers in BMI
+ggplot(insure, aes(y = bmi)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(title = "Boxplot of BMI")
+
+```
+There are definitely some high-value outliers in charges, likely from smokers with health issues. BMI also has a few outliers but not as extreme.
+
+
+EDA Summary
+
+The dataset includes 1338 observations and 8
