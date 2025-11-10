@@ -176,8 +176,8 @@ The dataset includes 1338 observations and 8 variables: age, sex, bmi, children,
 ```{r}
 set.seed(123)
 
-# Splitting the data into training and testing sets (80-20 split)
-train_index <- createDataPartition(insure$charges, p = 0.8, list = FALSE)
+# Splitting the data into training and testing sets (70-30 split)
+train_index <- createDataPartition(insure$charges, p = 0.7, list = FALSE)
 
 train_data <- insure[train_index, ]
 test_data <- insure[-train_index, ]
@@ -240,12 +240,16 @@ model_comparison <- data.frame(
 )
 print(model_comparison)
 ```
+Both models worked well but Random Forest achieved a lower RMSE and Higher R^2 value
+
 
 # Feature Importance
 ```{r}
 importance(rf_model)
 varImpPlot(rf_model, main = "Variable Importance from Random Forest Model")
 ```
+It seems that smoker, age, and bmi are the top predictors of insurance charges according to the random forest model. The region, sex, and children showed less importance comparatively.
+
 
 # Residual Analysis
 ```{r}
@@ -262,4 +266,12 @@ ggplot(residuals_mlr, aes(x = Predicted, y = Residuals)) +
 ```
 
 # Modeling Summary
+
+We used two regression models to train and predict individual medical costs (charges): Multiple Linear Regression and Random Forest Regression. Both models performed well, but Random Forest achieved a lower MSE and higher R^2 value, showing a strong predictive accuracy and the handleing of non-linear relationships.
+
+Across both models, the most predictors that influence the model the most were smoker, bmi, and age. As we expected that a bad life style choice were associated with the large increase in predicted medical charges, while also bad bmi and old age also contributed to the total costs.
+
+Overall, the results show that lifestyle and demographic factors such as being a smoker and bad bmi play a role in determining healthcare costs.
+
+
 
