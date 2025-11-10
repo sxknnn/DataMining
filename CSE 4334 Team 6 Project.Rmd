@@ -72,3 +72,47 @@ summary(baseline_model)
 ```
 
 R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
+
+# K-Means Clustering
+
+```{r}
+# data prep for clustering
+cluster_data <- insure %>%
+  select(age, bmi, children)
+scaled_cluster_data <- scale(cluster_data)
+```
+
+Determining optimal number of clusters (K):
+
+```{r}
+wss <- numeric(10)
+for (i in 1:10) {
+  wss[i] <- sum(kmeans(scaled_cluster_data, centers = i)$withinss)
+}
+plot(1:10, wss, type = "b", xlab = "Number of Clusters (K)",
+     ylab = "Within-Cluster Sum of Squares (WSS)",
+     main = "Elbow Method for K-Means Clustering")
+```
+Running K-means clustering:
+
+```{r}
+# Run K-Means 
+set.seed(42) 
+kmeans_model <- kmeans(scaled_cluster_data, centers = 4, nstart = 25)
+
+# cluster assignment to the data
+insure$cluster <- as.factor(kmeans_model$cluster)
+
+# analyze clusters 
+insure %>%
+  group_by(cluster) %>%
+  summarise(
+    N = n(),
+    Avg_Age = mean(age),
+    Avg_BMI = mean(bmi),
+    Avg_Children = mean(children),
+    Avg_Charges = mean(charges)
+  )
+```
+
+K-Means model segmented customers into four groups based on age, BMI, and children. Cluster 3 is the highest-risk segment, characterized by high BMI and the highest average charges ($17,652). In contrast, Cluster 1 represents the youngest, lowest-charge segment ($8,556). The other two clusters, Cluster 4 (oldest individuals) and Cluster 2 (highest number of children), represent intermediate risk profiles.
