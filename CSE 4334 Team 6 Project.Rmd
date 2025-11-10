@@ -274,4 +274,91 @@ Across both models, the most predictors that influence the model the most were s
 Overall, the results show that lifestyle and demographic factors such as being a smoker and bad bmi play a role in determining healthcare costs.
 
 
+# Optional: Classification
+
+```{r}
+# Check class balance
+table(insure$insuranceclaim)
+
+# Convert insuranceclaim to factor if not already
+insure$insuranceclaim <- as.factor(insure$insuranceclaim)
+
+# Split into train/test (same 70/30 ratio)
+set.seed(123)
+train_index <- createDataPartition(insure$insuranceclaim, p = 0.7, list = FALSE)
+train_class <- insure[train_index, ]
+test_class  <- insure[-train_index, ]
+
+```
+# Logistic Regression Model
+```{r}
+# Logistic Regression Model
+log_model <- glm(insuranceclaim ~ age + sex + bmi + children + smoker + region,
+                 data = train_class, family = "binomial")
+
+summary(log_model)
+
+# Predictions (probabilities)
+pred_log_prob <- predict(log_model, newdata = test_class, type = "response")
+
+# Convert to binary (threshold = 0.5)
+pred_log <- ifelse(pred_log_prob > 0.5, 1, 0)
+pred_log <- as.factor(pred_log)
+# Confusion Matrix
+confusion_log <- confusionMatrix(pred_log, test_class$insuranceclaim)
+print(confusion_log)
+
+```
+# Random Forest Classification Model
+```{r}
+set.seed(123)
+rf_class <- randomForest(insuranceclaim ~ age + sex + bmi + children + smoker + region,
+                         data = train_class, ntree = 500, importance = TRUE)
+
+# Predict
+pred_rf <- predict(rf_class, newdata = test_class)
+# Confusion Matrix
+confusion_rf <- confusionMatrix(pred_rf, test_class$insuranceclaim)
+print(confusion_rf)
+```
+# Model Evaluation Summary
+
+```{r}
+library(caret)
+
+# Logistic Regression Evaluation
+confusionMatrix(pred_log, test_class$insuranceclaim, positive = "1")
+
+# Random Forest Evaluation
+confusionMatrix(pred_rf, test_class$insuranceclaim, positive = "1")
+
+```
+# ROC Curve and AUC score
+```{r}
+library(pROC)
+
+# ROC for Logistic Regression
+roc_log <- roc(test_class$insuranceclaim, pred_log_prob)
+plot(roc_log, col = "blue", main = "ROC Curve (Logistic Regression)")
+auc(roc_log)
+
+# ROC for Random Forest
+roc_rf <- roc(test_class$insuranceclaim, as.numeric(pred_rf))
+plot(roc_rf, col = "red", main = "ROC Curve (Random Forest)")
+auc(roc_rf)
+
+
+```
+# Confusion Matrix Plots
+```{r}
+cm_rf <- confusionMatrix(pred_rf, test_class$insuranceclaim)
+cm_df <- as.data.frame(cm_rf$table)
+
+ggplot(cm_df, aes(Prediction, Reference, fill = Freq)) +
+  geom_tile() + geom_text(aes(label = Freq), color = "white", size = 5) +
+  scale_fill_gradient(low = "steelblue", high = "darkred") +
+  labs(title = "Random Forest Confusion Matrix", x = "Predicted", y = "Actual") +
+  theme_minimal()
+
+```
 
