@@ -187,7 +187,7 @@ dim(train_data)
 dim(test_data)
 
 ```
-# Multiple Linear Regression
+# Multiple Linear Regression (Baseline)
 
 ```{r}
 # Building the multiple linear regression model
@@ -290,12 +290,13 @@ train_class <- insure[train_index, ]
 test_class  <- insure[-train_index, ]
 
 ```
-# Logistic Regression Model
+# Logistic Regression Model (Baseline Classifier)
 ```{r}
 # Logistic Regression Model
 log_model <- glm(insuranceclaim ~ age + sex + bmi + children + smoker + region,
                  data = train_class, family = "binomial")
 
+# Model Summary
 summary(log_model)
 
 # Predictions (probabilities)
@@ -304,6 +305,7 @@ pred_log_prob <- predict(log_model, newdata = test_class, type = "response")
 # Convert to binary (threshold = 0.5)
 pred_log <- ifelse(pred_log_prob > 0.5, 1, 0)
 pred_log <- as.factor(pred_log)
+
 # Confusion Matrix
 confusion_log <- confusionMatrix(pred_log, test_class$insuranceclaim)
 print(confusion_log)
@@ -362,3 +364,11 @@ ggplot(cm_df, aes(Prediction, Reference, fill = Freq)) +
 
 ```
 
+
+
+True Positive = 12
+True Negative = 3 
+False Positive = 163 
+False Negative = 222
+
+Based on the confusion matrix, the Random Forest model shows a high number of false positives and false negatives, indicating that while it can identify some insurance claims correctly, it struggles with accurately classifying many instances.
