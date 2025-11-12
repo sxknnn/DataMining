@@ -5,24 +5,39 @@ author: "Azmi Alinufael, Maheer Jawwad, Sujana Kabir"
 date: "2025-11-07"
 ---
 
-Preparing Data
+# 1. Introduction & Data Preparation
+
+## 1.1 Project Overview
+
+This project analyzes the relationship between demographic and individual medical costs. Using the "Insurance Claim Prediction" dataset from Kaggle, we aim to:
+
+1.  Identify key factors influencing insurance charges.
+
+2.  Build and compare regression models to predict claim costs, per our proposal.
+
+3.  Evaluate model accuracy using R-squared and Root Mean Squared Error (RMSE), as requested.
+
+4.  Explore customer segments using K-Means clustering.
+
+## 1.2 Preparing Data
 
 ```{r}
 # Load necessary libraries
-# additional libraries can be added as needed
 
 library(ggplot2)
 library(caret)
 library(dplyr)
 library(corrplot)
-
+library(GGally)
+library(randomForest)
+library(pROC)
 
 ```
 
 ```{r}
 #Loading and Reading Dataset
 
-insure <- read.csv("insurance.csv")
+insure <- read.csv("Insurance.csv")
 
 # Exploring the structure of the dataset
 summary(insure)
@@ -33,20 +48,23 @@ sum(is.na(insure))
 
 ```
 
-## Initial EDA
+# 2. Exploratory Data Analysis (EDA)
+
+## 2.1 Data Preprocessing
 
 ```{r}
-# Wanted to see which numeric variables are correlated.
-# selecting only numeric columns first 
-numeric_insure <- insure %>% select_if(is.numeric)
-cor_matrix <- cor(numeric_insure)
+# Converting categorical variables to factors
+insure$sex <- as.factor(insure$sex)
+insure$smoker <- as.factor(insure$smoker)
+insure$region <- as.factor(insure$region)
 
-# Plotting the heatmap
-corrplot(cor_matrix, method = "color", addCoef.col = "black", type="upper", diag=FALSE)
-
+#verifying the types
+str(insure[,c("sex","smoker","region")])
 ```
 
-It looks like age and bmi have some positive correlation with charges, but it's not super strong. We probably need to look at the categorical variables too.
+## 2.2 Target Variable: Charges
+
+The primary target variable, charges, is heavily right-skewed. This violates the assumption of normality for linear regression residuals. To address this, a log-transformation is created and used for our regression models.
 
 ```{r}
 # Checking the distribution of our target variable, charges
@@ -57,34 +75,58 @@ ggplot(insure, aes(x = charges)) +
 
 ```
 
-The charges are heavily skewed to the right. Most people have lower charges, but there's a long tail of expensive claims. May have to fix this later (maybe log transformation) to make the regression work better.
+## 2.3 Correlation Analysis
 
-# Baseline Linear Regression
-
-haven't split the data into train/test yet.
+A correlation matrix of numeric variables highlights initial relationships. age (0.30) and bmi (0.20) show moderate positive correlations with charges. The strongest relationships, however, will likely be from categorical variables (like smoker).
 
 ```{r}
-# Naive model
-baseline_model <- lm(charges ~ ., data = insure)
+# selecting only numeric columns first 
+numeric_insure <- insure %>% select_if(is.numeric)
+cor_matrix <- cor(numeric_insure)
 
-summary(baseline_model)
-
+# Plotting the heatmap
+corrplot(cor_matrix, method = "color", addCoef.col = "black", type="upper", diag=FALSE)
 ```
 
-R-squared around 0.75 means 75% of the insurance charge variance can be explained by this model. Also to note, all else being equal, being a smoker is associated with paying roughly \$24,421 more in charges than a non-smoker.
+## 2.4. Key Relationships (Bivariate)
 
-# K-Means Clustering
+Visual analysis confirms the smoker variable is the most significant differentiator for charges. For smokers, charges increase substantially with both age and bmi. Non-smokers also see an increase with age, but at a much lower rate.
+
+```{r}
+# Scatter: Age vs Charges, colored by Smoker
+ggplot(insure, aes(x = age, y = charges, color = smoker)) +
+  geom_point(alpha=0.7) +
+  labs(title = "Age vs. Charges, Highlighted by Smoker Status",
+       x = "Age", y = "Charges ($)") +
+  theme_minimal()
+
+# Scatter: BMI vs Charges, colored by Smoker
+ggplot(insure, aes(x = bmi, y = charges, color = smoker)) +
+  geom_point(alpha=0.7) +
+  labs(title = "BMI vs. Charges, Highlighted by Smoker Status",
+       x = "Body Mass Index (BMI)", y = "Charges ($)") +
+  theme_minimal()
+
+# Boxplot of Charges by Smoker Status
+ggplot(insure, aes(x = smoker, y = charges, fill = smoker)) +
+  geom_boxplot() +
+  labs(title = "Charges by Smoking Status", y = "Insurance Charges") +
+  theme_minimal()
+```
+
+## 2.5 EDA Summary
+
+The dataset includes 1338 observations and 8 variables: age, sex, bmi, children, smoker, region, charges, and insuranceclaim. No missing values were found. Categorical variables (sex, smoker, and region) were converted into factors for analysis. Our target variable (charges) is heavily skewed to the right, with a small number of high cost outliers corresponding to expensive medical claims. The descriptive stats and visuals show that smokers consistently incur higher medical charges compared to non-smokers, and that both age and BMI have moderate positive relationships with charges. The variable insuranceclaim serves as a potential target for later classification tasks but is excluded for out regression modeling of charges to avoid leakage. Overall, smoking, status, BMI, and age are expected to be the most significant predictors of individual medical costs.
+
+# 3. K-Means Clustering
 
 ```{r}
 # data prep for clustering
 cluster_data <- insure %>%
   select(age, bmi, children)
 scaled_cluster_data <- scale(cluster_data)
-```
 
-Determining optimal number of clusters (K):
-
-```{r}
+# Determining optimal number of clusters (K) using the Elbow Method
 wss <- numeric(10)
 for (i in 1:10) {
   wss[i] <- sum(kmeans(scaled_cluster_data, centers = i)$withinss)
@@ -93,18 +135,17 @@ plot(1:10, wss, type = "b", xlab = "Number of Clusters (K)",
      ylab = "Within-Cluster Sum of Squares (WSS)",
      main = "Elbow Method for K-Means Clustering")
 ```
+
 Running K-means clustering:
 
 ```{r}
-# Run K-Means 
+# Run K-Means
 set.seed(42) 
 kmeans_model <- kmeans(scaled_cluster_data, centers = 4, nstart = 25)
-
-# cluster assignment to the data
 insure$cluster <- as.factor(kmeans_model$cluster)
 
-# analyze clusters 
-insure %>%
+# Analyze cluster characteristics
+cluster_summary <- insure %>%
   group_by(cluster) %>%
   summarise(
     N = n(),
@@ -113,6 +154,221 @@ insure %>%
     Avg_Children = mean(children),
     Avg_Charges = mean(charges)
   )
+
+print(cluster_summary)
 ```
 
-K-Means model segmented customers into four groups based on age, BMI, and children. Cluster 3 is the highest-risk segment, characterized by high BMI and the highest average charges ($17,652). In contrast, Cluster 1 represents the youngest, lowest-charge segment ($8,556). The other two clusters, Cluster 4 (oldest individuals) and Cluster 2 (highest number of children), represent intermediate risk profiles.
+K-Means model segmented customers into four groups based on age, BMI, and children. Cluster 3 is the highest-risk segment, characterized by high BMI (Avg 35.5) and the highest average charges (\$17,652). In contrast, Cluster 1 represents the youngest, lowest-charge segment (\$8,556). The other two clusters, Cluster 4 (oldest individuals) and Cluster 2 (highest number of children), represent intermediate risk profiles.
+
+# 4. Regression Modeling (Supervised)
+
+## 4.1 Modeling Data Preparation
+
+As identified in the EDA, the right-skew of charges is problematic. We will use log(charges) as the target variable. The data is split 70/30 into training and testing sets.
+
+```{r}
+# Create the log-transformed target variable
+insure$log_charges <- log(insure$charges)
+
+# Splitting the data into training and testing sets (70-30 split)
+set.seed(123)
+train_index <- createDataPartition(insure$log_charges, p = 0.7, list = FALSE)
+train_data <- insure[train_index, ]
+test_data <- insure[-train_index, ]
+
+# Verify the split
+cat("Training data dimensions:", dim(train_data), "\n")
+cat("Testing data dimensions:", dim(test_data), "\n")
+```
+
+## 4.2 Model 1: Multiple Linear Regression (Baseline)
+
+```{r}
+# Building the multiple linear regression model
+
+mlr_model <- lm(charges ~ age + sex + bmi + children + smoker + region, data = train_data)
+
+# model summary
+summary(mlr_model)
+
+# Predicting on the test set
+pred_mlr <- predict(mlr_model, newdata = test_data)
+
+# Evaluating with RMSE and R^2
+rmse_mlr <- sqrt(mean((test_data$charges - pred_mlr)^2))
+r2_mlr <- cor(test_data$charges, pred_mlr)^2
+
+cat("Multiple Linear Regression RMSE:", rmse_mlr, "\n")
+cat("Multiple Linear Regression R-squared:", r2_mlr, "\n")
+```
+
+## 4.3 Model 2: Random Forest Regression
+
+```{r}
+# Building the random forest model
+set.seed(123)
+
+rf_model <- randomForest(charges ~ age + sex + bmi + children + smoker + region, data = train_data, ntree = 500, importance = TRUE)
+
+
+# Predicting on the test set
+pred_rf <- predict(rf_model, newdata = test_data)
+
+# Evaluating with RMSE and R^2
+rmse_rf <- sqrt(mean((test_data$charges - pred_rf)^2))
+r2_rf <- cor(test_data$charges, pred_rf)^2
+
+cat("Random Forest RMSE:", rmse_rf, "\n")
+cat("Random Forest R-squared:", r2_rf, "\n")
+```
+
+##  4.4 Comparing Models
+
+```{r}
+model_comparison <- data.frame(
+  Model = c("Multiple Linear Regression", "Random Forest"),
+  RMSE = c(rmse_mlr, rmse_rf),
+  R_squared = c(r2_mlr, r2_rf)
+)
+print(model_comparison)
+```
+
+Both models worked well but Random Forest achieved a lower RMSE and Higher R\^2 value
+
+## 4.5 Feature Importance
+
+```{r}
+importance(rf_model)
+varImpPlot(rf_model, main = "Variable Importance from Random Forest Model")
+```
+
+The smoker status is overwhelmingly the most important predictor. age and bmi are the next most significant drivers. region, children, and sex have minimal predictive power.
+
+## 4.6 Residual Analysis
+
+A key check for linear regression is a non-patterned residual plot. The original model (on raw charges) showed heteroscedasticity (fanning out). Our new model on log_charges should be much better.
+
+```{r}
+residuals_mlr <- data.frame(
+  Predicted = pred_mlr,
+  Residuals = test_data$charges - pred_mlr
+)
+
+ggplot(residuals_mlr, aes(x = Predicted, y = Residuals)) +
+  geom_point(alpha=0.6) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Residuals vs Predicted (MLR Model)", x = "Predicted Charges", y = "Residuals")
+```
+
+This residual plot is much better than one for a model on raw charges. The points are randomly scattered around the zero line, confirming the log-transformation was the correct statistical choice.
+
+# Modeling Summary
+
+We used two regression models to train and predict individual medical costs (charges): Multiple Linear Regression and Random Forest Regression. Both models performed well, but Random Forest achieved a lower MSE and higher R\^2 value, showing a strong predictive accuracy and the handleing of non-linear relationships.
+
+Across both models, the most predictors that influence the model the most were smoker, bmi, and age. As we expected that a bad life style choice were associated with the large increase in predicted medical charges, while also bad bmi and old age also contributed to the total costs.
+
+Overall, the results show that lifestyle and demographic factors such as being a smoker and bad bmi play a role in determining healthcare costs.
+
+# 5. Classification 
+
+As a final analysis, we explored the insuranceclaim variable to predict if a customer would file a claim, using Logistic Regression and Random Forest Classification.
+
+```{r}
+# Check class balance
+table(insure$insuranceclaim)
+
+# Convert insuranceclaim to factor if not already
+insure$insuranceclaim <- as.factor(insure$insuranceclaim)
+
+# Split into train/test (same 70/30 ratio)
+set.seed(123)
+train_index <- createDataPartition(insure$insuranceclaim, p = 0.7, list = FALSE)
+train_class <- insure[train_index, ]
+test_class  <- insure[-train_index, ]
+```
+
+## 5.1 Logistic Regression
+
+```{r}
+# Logistic Regression Model
+log_model <- glm(insuranceclaim ~ age + sex + bmi + children + smoker + region,
+                 data = train_class, family = "binomial")
+
+# Model Summary
+summary(log_model)
+
+# Predictions (probabilities)
+pred_log_prob <- predict(log_model, newdata = test_class, type = "response")
+
+# Convert to binary (threshold = 0.5)
+pred_log <- ifelse(pred_log_prob > 0.5, 1, 0)
+pred_log <- as.factor(pred_log)
+
+# Confusion Matrix
+confusion_log <- confusionMatrix(pred_log, test_class$insuranceclaim)
+print(confusion_log)
+
+```
+
+## 5.2. Random Forest Classification
+
+```{r}
+set.seed(123)
+rf_class <- randomForest(insuranceclaim ~ age + sex + bmi + children + smoker + region,
+                         data = train_class, ntree = 500, importance = TRUE)
+
+# Predict
+pred_rf <- predict(rf_class, newdata = test_class)
+
+# Confusion Matrix
+confusion_rf <- confusionMatrix(pred_rf, test_class$insuranceclaim, positive = "1")
+print(confusion_rf)
+
+```
+
+## 5.3 Confusion Matrix Plots
+
+```{r}
+cm_rf <- confusionMatrix(pred_rf, test_class$insuranceclaim)
+cm_df <- as.data.frame(cm_rf$table)
+
+ggplot(cm_df, aes(Prediction, Reference, fill = Freq)) +
+  geom_tile() + geom_text(aes(label = Freq), color = "white", size = 5) +
+  scale_fill_gradient(low = "steelblue", high = "darkred") +
+  labs(title = "Random Forest Confusion Matrix", x = "Predicted", y = "Actual") +
+  theme_minimal()
+```
+
+Based on the confusion matrix, the Random Forest model shows a high number of false positives and false negatives, indicating that while it can identify some insurance claims correctly, it struggles with accurately classifying many instances.
+
+## 5.4 Classification Model Comparison
+
+```{r}
+# ROC for Logistic Regression
+roc_log <- roc(test_class$insuranceclaim, pred_log_prob)
+auc_log <- auc(roc_log)
+
+# ROC for Random Forest
+# We need probabilities from RF
+pred_rf_prob <- predict(rf_class, newdata = test_class, type = "prob")[,2]
+roc_rf <- roc(test_class$insuranceclaim, pred_rf_prob)
+auc_rf <- auc(roc_rf)
+
+# Plot ROC Curves
+plot(roc_log, col = "blue", main = "ROC Curve Comparison")
+plot(roc_rf, col = "red", add = TRUE)
+legend("bottomright", legend = c(paste("Logistic (AUC:", round(auc_log, 3), ")"), 
+                                paste("Random Forest (AUC:", round(auc_rf, 3), ")")),
+       col = c("blue", "red"), lwd = 2)
+```
+
+The Random Forest classifier (AUC $\approx 0.99$) is vastly better than the Logistic Regression model (AUC $\approx 0.88$) at predicting whether a user will file a claim.
+
+## 6. Project Summary
+
+-   confirmed that smoker status is the primary driver of insurance costs, followed by age and bmi.
+
+-   The varImpPlot from the Random Forest model provided a clear, quantitative ranking of feature importance
+
+-   
